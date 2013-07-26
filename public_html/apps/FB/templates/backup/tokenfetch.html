@@ -1,0 +1,79 @@
+{% extends "layout.html" %}
+{% block body %}
+
+<div id="fb-root"></div>
+<script>
+
+var uid,accessToken,friends;
+
+// Additional JS functions here
+window.fbAsyncInit = function() {
+    FB.init({
+      appId      : '478027312287777', // App ID
+      status     : true, // check login status
+      cookie     : true, // enable cookies to allow the server to access the session
+      xfbml      : false  // parse XFBML
+    });
+
+    // Additional init code here
+	FB.login(function(response) {
+		if (response.authResponse) {
+			uid = response.authResponse.userID;
+			accessToken = response.authResponse.accessToken;
+			alert("app connected login");
+      $.getJSON($SCRIPT_ROOT + '/_getProfile', {
+        a: accessToken
+      }, function(data) {
+        alert(data.id);
+        my_id = data.id;
+        $.getJSON($SCRIPT_ROOT + '/_getCloseFriends', {
+        a: accessToken,
+        b: my_id
+      }, function(input) {friends=input; for(var i=0; i< input.length; i++) { console.log('Rank: '+ i); for(var key in input[i]) console.log(key + ':' + input[i][key]);}});
+      });
+
+			console.log('Welcome!  Fetching your information.... ');
+			FB.api('/me', function(response) {
+				console.log('Good to see you, ' + response.name + '.');
+			});
+		} 
+		else {
+			console.log('User cancelled login or did not fully authorize.');
+		}
+		},{scope:'email,user_likes,read_friendlists,read_insights,read_mailbox,read_requests,read_stream,manage_notifications,publish_actions,user_about_me,user_activities,user_birthday,user_checkins,user_education_history,user_hometown,user_groups,user_interests,user_likes,user_photos,user_relationships,user_religion_politics,user_status,user_website,user_work_history,friends_about_me,friends_activities,friends_birthday,friends_checkins,friends_education_history,friends_hometown,friends_groups,friends_interests,friends_likes,friends_photos,friends_relationships,friends_religion_politics,friends_status,friends_website,friends_work_history'
+	});
+	FB.getLoginStatus(function(response) {
+		if (response.status === 'connected') {
+			// the user is logged in and has authenticated your
+			// app, and response.authResponse supplies
+			// the user's ID, a valid access token, a signed
+			// request, and the time the access token 
+			// and signed request each expire
+			uid = response.authResponse.userID;
+			accessToken = response.authResponse.accessToken;
+			alert("app connected");
+		} 
+		else if (response.status === 'not_authorized') {
+			// the user is logged in to Facebook, 
+			// but has not authenticated your app
+			alert("GS internals can't procced further. Insuffiecient Permissions");
+		} 
+		else {
+			// the user isn't logged in to Facebook.
+            alert(response.status);
+			alert("User Not logged in.");
+		}
+	}); 
+};
+
+  // Load the SDK asynchronously
+  (function(d){
+     var js, id = 'facebook-jssdk', ref = d.getElementsByTagName('script')[0];
+     if (d.getElementById(id)) {return;}
+     js = d.createElement('script'); js.id = id; js.async = true;
+     js.src = "//connect.facebook.net/en_US/all.js";
+     ref.parentNode.insertBefore(js, ref);
+   }(document));
+</script>
+{% endblock %}
+
