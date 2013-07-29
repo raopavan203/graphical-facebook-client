@@ -8,12 +8,12 @@ var margins = 10,padding = 20;
 var ticker,counter;
 var friends,me,nodes;
 var strings = ["We Are Working.","Please wait while we fetch your closest friends","Working","Working.","Working..","Working...","Still Working",
-                        "We are really sorry!!","Its your first time","So we are building your profile from scratch","Please bear with us","This won't happen next time",
-                        "Almost done","really almost done","just a few more moments","We will make sure, you don't regret the wait","Yep! It's that good",
-                        "About to be done","Do let us know, how it is","We are building something really from scratch","Your likes","Your posts","Your messages",
-                        "Your Tags","These things tell us who is close to you","It's all you","You'll see",":)",":D",":p",";)",";p","That was something","!!!",
-                        "We will be there","Don't worry","You can brew yourself a cup of coffee","We will keep track of thing while this is still working",
-                        ":D"];
+               "We are really sorry!!","Its your first time","Please bear with us","This won't happen next time",
+               "Almost done","really almost done","just a few more moments","We will make sure, you don't regret the wait","Yep! It's that good",
+               "About to be done","Do let us know, how it is","We are building something really from scratch","Your likes","Your posts","Your messages",
+               "Your Tags","These things tell us who is close to you","It's all you","You'll see",":)",":D",":p",";)",";p","That was something","!!!",
+               "We will be there","Don't worry","You can brew yourself a cup of coffee","We will keep track of thing while this is still working",
+               "Its probably your first time","So we are building your profile from scratch",":D"];
 
 
 var dummyServer = new Object();
@@ -98,19 +98,10 @@ function User(person){
         var container = d3.select(env);
         var picMinAttr = this.displayPic.height <= this.displayPic.width ? "height" : "width";
         var picHeight,picWidth,minSize = 112*scale;
-//        if(picMinAttr == "height"){
-             picHeight = minSize;
-             picWidth = this.displayPic.width/this.displayPic.height * minSize;
-	     picWidth = (picWidth >= minSize) ? picWidth : minSize;
-//        }
-//        else{
-//            picWidth = minSize;
-//            picHeight = this.displayPic.height/this.displayPic.width * minSize;
-//        }
-	
-	console.log(that.fullName + " pic size : [" + that.displayPic.width + "," + that.displayPic.height + "], min : " + picMinAttr);
-	console.log(that.fullName + " adjusted : [" + picWidth + "," + picHeight + "]");
-
+        picHeight = minSize;
+        picWidth = this.displayPic.width/this.displayPic.height * minSize;
+	picWidth = (picWidth >= minSize) ? picWidth : minSize;
+  
         var thisSprite = container.append("g")
             .attr("id","spriteID" + that.id);	
 			
@@ -232,8 +223,9 @@ var init = function(){
     nodes.push(me);
     mainLayout = d3.layout.force()
         .on("tick", tick)
-        .charge(-2500)
+        .charge(-4000)
 	.alpha(0.1)
+	.gravity(0)
         .size([w, h]);    
     
     update(ENV,nodes);
@@ -249,7 +241,7 @@ function update(env,nodes) {
   mainLayout
       .nodes(nodes)
       .links(links)
-	  .linkDistance(function(d,i) { var dis = linkScale((h/2)*(1-i/nodes.length)) - (2 * margins); console.log(d.fullName + "'s Score : " + dis); return dis; } )
+	  .linkDistance(function(d,i) { var dis = linkScale((h/2)*(1-i/nodes.length)) - (2 * margins);  return dis; } )
       .start();
  
   // Update the links
@@ -286,26 +278,21 @@ function update(env,nodes) {
   d3.selectAll(".sprite" + me.id).transition().duration(3000).attr("opacity",1).each("end",function(){
                                     d3.selectAll(".sprite" + me.id).transition().delay(5000).duration(3000).attr("opacity",0)});                
     
-}
+} 
 
 function tick(e) {
-  var k =  e.alpha;
   var q = d3.geom.quadtree(nodes),i=0,n = nodes.length;
 
-//  while (++i < n) {
-//    q.visit(collide(nodes[i]));
-//  }
+  while (++i < n) {
+    q.visit(collide(nodes[i]));
+  }
 
-//  node
- //     .each(collide(0.5))
-  //    .forEach(function(d){
-//		d.y += (1/(d.y - h)) * k * 10;
-//		d.y += (1/d.y) * k * 10; 
-//	});
+  node.forEach(function(d){ d.y = d.y < (h/2) ? d.y + d.y*2/h * e.alpha*4 : d.y - d.y*2/h * e.alpha*4;  
+			});
 	
   node
-       .attr("transform", function(d) { return d.id == me.id ? "translate(" + w/2 + "," + h/2 + ")"  : 
-                                        "translate(" + Math.max(100*scale,Math.min(w - (100*scale), d.x)) + "," + Math.max(100*scale,Math.min(h - (100*scale), d.y)) + ")"; });
+       .attr("transform", function(d) { return d.id == me.id ? "translate(" + (d.x = w/2) + "," + (d.y = h/2) + ")"  : 
+                                        "translate(" + (d.x = Math.max(100*scale,Math.min(w - (100*scale), d.x))) + "," + (d.y=Math.max(100*scale,Math.min(h - (100*scale), d.y))) + ")"; });
 
   link.attr("x2", function(d) { return Math.max(100*scale,Math.min(w - (100*scale), d.target.x)); })
       .attr("y2", function(d) { return Math.max(100*scale,Math.min(h - (100*scale), d.target.y)); });
@@ -314,21 +301,22 @@ function tick(e) {
 
 
 function collide(inode) {
-    var r = inode.radius * scale + padding,
+    var r = inode.userObject.radius * scale + padding,
         nx1 = inode.x - r,
         nx2 = inode.x + r,
         ny1 = inode.y - r,
         ny2 = inode.y + r;
     return function(quad, x1, y1, x2, y2) {
 	
-      if (quad.point && (quad.point !== inode)) {
+      if (quad.point != undefined && quad.point != null && (quad.point.id != inode.id)) {
 	var x = inode.x - quad.point.x,
             y = inode.y - quad.point.y,
             l = Math.sqrt(x * x + y * y),
-            r = 2 * inode.userObject.radius + padding;
+            r = 2 * inode.userObject.radius * scale;
 
         if (l < r) {
-   	 l = (l - r) / l * 0.1;
+
+    	  l = ((l - r) / l);
           inode.x -= x *= l;
           inode.y -= y *= l;
           quad.point.x += x;

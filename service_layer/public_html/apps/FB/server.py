@@ -18,7 +18,7 @@ from flask import Flask, jsonify, render_template, request, redirect, url_for, s
 from mongoalchemy.document import Document
 from mongoalchemy.fields import *
 from mongoalchemy.session import Session
-import urllib, json, score_calculation, fetch_fb_functions, datetime
+import urllib, json, score_calculation, fetch_fb_functions1, datetime
 
 RECALCULATE_AFTER = 2628000 # Average Time Equivalent for a month in seconds
 
@@ -37,7 +37,7 @@ class User(Document):
 
 # METHODS
 
-session = Session.connect('fb-closest-friends')
+session = Session.connect('fb')
 #session.clear_collection(User)
 
 def store_user_record(my_uid, my_friends_scores, update_flag):
@@ -62,7 +62,7 @@ def getProfile():
     accessToken = request.args.get('a', '', type=unicode)
     url = "https://graph.facebook.com/me?fields=id, name, gender, relationship_status, picture.height(200).width(200), link &access_token="+accessToken
     profile = json.loads(urllib.urlopen(url).read())
-    print profile, type(profile)
+    print 'PROFILE: ',profile, type(profile)
     print profile['id']
     me=dict()
     for key in profile.keys():
@@ -103,7 +103,7 @@ def getCloseFriends():
               print cur_user.set_of_scores, type(cur_user.set_of_scores)
               top_twenty = list()
               for list_elem in cur_user.set_of_scores:
-                  profile = json.loads(fetch_fb_functions.getProfile(accessToken, list_elem.friend_uid))
+                  profile = json.loads(fetch_fb_functions1.getProfile(accessToken, list_elem.friend_uid))
                   print 'PROFILE: ', profile
                   print type(profile)
                   print profile.keys()
@@ -119,22 +119,28 @@ def getCloseFriends():
               return json.dumps(top_twenty)
           
     print '@@@@@@@@@@@@@@@@@    Calculating'
-    my_friends = fetch_fb_functions.getFriends(accessToken)
-    #print 'my_friends'
-    #print my_friends['friends']['data']
+    my_friends = fetch_fb_functions1.getFriends(accessToken)
+    if 'friends' not in my_friends.keys():
+        print 'no friends'
+        return json.dumps('')
+    
+    #print 'my friends'
+    #print my_friends
+      
     score_calculation.init_scores(my_friends['friends']['data'])
 
-    my_photos = fetch_fb_functions.getPhotos(accessToken)
-    print 'my_photos'
-    #print my_photos
-    print my_photos['tagged']
-    score_calculation.update_scores(my_photos['tagged'], 3)
-    print my_photos['liked by']
-    score_calculation.update_scores(my_photos['liked by'], 2)
-    print my_photos['commented by']
-    score_calculation.update_scores(my_photos['commented by'], 2)
+    my_photos = fetch_fb_functions1.getPhotos(accessToken)
+    if my_photos != None:
+       print 'my_photos'
+       #print my_photos
+       print my_photos['tagged']
+       score_calculation.update_scores(my_photos['tagged'], 3)
+       print my_photos['liked by']
+       score_calculation.update_scores(my_photos['liked by'], 2)
+       print my_photos['commented by']
+       score_calculation.update_scores(my_photos['commented by'], 2)
 
-    my_checkins = fetch_fb_functions.getCheckins(accessToken, uid) 
+    my_checkins = fetch_fb_functions1.getCheckins(accessToken, uid) 
     print 'my_checkins'
     if my_checkins != None:
        print my_checkins['from']
@@ -143,7 +149,7 @@ def getCloseFriends():
        print my_checkins['tagged']
        score_calculation.update_scores(my_checkins['tagged'], 4) 
     
-    my_feeds = fetch_fb_functions.getFeed(accessToken)
+    my_feeds = fetch_fb_functions1.getFeed(accessToken)
     print 'my_feeds'
     print my_feeds['tagged']
     score_calculation.update_scores(my_feeds['tagged'], 3)
@@ -152,13 +158,13 @@ def getCloseFriends():
     print my_feeds['commented by']
     score_calculation.update_scores(my_feeds['commented by'], 2)
   
-    my_family = fetch_fb_functions.getFamily(accessToken)
+    my_family = fetch_fb_functions1.getFamily(accessToken)
     print 'my_family'
     if my_family != None:
        print my_family
        score_calculation.update_scores_family(my_family, 3)
 
-    my_status = fetch_fb_functions.get_status(accessToken, uid)
+    my_status = fetch_fb_functions1.get_status(accessToken, uid)
     print 'my_status'
     print my_status['tagged']
     score_calculation.update_scores(my_status['tagged'], 3)
@@ -166,8 +172,8 @@ def getCloseFriends():
     score_calculation.update_scores(my_status['liked by'], 2)
     print my_status['commented by']
     score_calculation.update_scores(my_status['commented by'], 2)
-    
-    my_links = fetch_fb_functions.getLinks(accessToken)
+
+    my_links = fetch_fb_functions1.getLinks(accessToken)
     print 'my_links'
     print my_links['tagged']
     score_calculation.update_scores(my_links['tagged'], 3)
@@ -176,24 +182,31 @@ def getCloseFriends():
     print my_links['commented by']
     score_calculation.update_scores(my_links['commented by'], 2)
 
-    my_inbox = fetch_fb_functions.getInbox(accessToken, uid)
-    print 'my_inbox'
-    print my_inbox
-    score_calculation.update_scores_inbox(my_inbox, 3)
+    my_inbox = fetch_fb_functions1.getInbox(accessToken, uid)
+    if my_inbox != None:
+       print 'my_inbox'
+       print my_inbox
+       score_calculation.update_scores_inbox(my_inbox, 3)
+
     sorted_score_list = score_calculation.show_scores()
+
     print '++++',sorted_score_list
-    top_twenty_friends = sorted_score_list[len(sorted_score_list)-20:]
-    
+    if len(sorted_score_list) >=20:
+       top_twenty_friends = sorted_score_list[len(sorted_score_list)-20:]
+    else:
+       top_twenty_friends = sorted_score_list
+
+    highest_index = len(top_twenty_friends)-1
     print '?????? $$$$$$', top_twenty_friends
     top_twenty = list()
-
-    highest = top_twenty_friends[19][1]
+       
+    highest = top_twenty_friends[highest_index][1]
     print 'highest: ', highest
 
     my_friends_scores=list() # set of scores to be stored in DB
 
     for list_elem in top_twenty_friends:
-        profile = json.loads(fetch_fb_functions.getProfile(accessToken, list_elem[0]))
+        profile = json.loads(fetch_fb_functions1.getProfile(accessToken, list_elem[0]))
         print 'PROFILE: ', profile
         print type(profile)
         print profile.keys()
