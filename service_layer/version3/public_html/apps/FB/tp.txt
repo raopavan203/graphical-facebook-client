@@ -1,0 +1,106 @@
+21c21
+< import urllib, json, score_calculation, fetch_fb_functions, datetime
+---
+> import urllib, json, score_calculation, fetch_fb_functions1, datetime
+40c40
+< session = Session.connect('fb-closest-friends')
+---
+> session = Session.connect('fb')
+65c65
+<     print profile, type(profile)
+---
+>     print 'PROFILE: ',profile, type(profile)
+106c106
+<                   profile = json.loads(fetch_fb_functions.getProfile(accessToken, list_elem.friend_uid))
+---
+>                   profile = json.loads(fetch_fb_functions1.getProfile(accessToken, list_elem.friend_uid))
+122,124c122,129
+<     my_friends = fetch_fb_functions.getFriends(accessToken)
+<     #print 'my_friends'
+<     #print my_friends['friends']['data']
+---
+>     my_friends = fetch_fb_functions1.getFriends(accessToken)
+>     if 'friends' not in my_friends.keys():
+>         print 'no friends'
+>         return json.dumps('')
+>     
+>     #print 'my friends'
+>     #print my_friends
+>       
+127,135c132,141
+<     my_photos = fetch_fb_functions.getPhotos(accessToken)
+<     print 'my_photos'
+<     #print my_photos
+<     print my_photos['tagged']
+<     score_calculation.update_scores(my_photos['tagged'], 3)
+<     print my_photos['liked by']
+<     score_calculation.update_scores(my_photos['liked by'], 2)
+<     print my_photos['commented by']
+<     score_calculation.update_scores(my_photos['commented by'], 2)
+---
+>     my_photos = fetch_fb_functions1.getPhotos(accessToken)
+>     if my_photos != None:
+>        print 'my_photos'
+>        #print my_photos
+>        print my_photos['tagged']
+>        score_calculation.update_scores(my_photos['tagged'], 3)
+>        print my_photos['liked by']
+>        score_calculation.update_scores(my_photos['liked by'], 2)
+>        print my_photos['commented by']
+>        score_calculation.update_scores(my_photos['commented by'], 2)
+137c143
+<     my_checkins = fetch_fb_functions.getCheckins(accessToken, uid) 
+---
+>     my_checkins = fetch_fb_functions1.getCheckins(accessToken, uid) 
+146c152
+<     my_feeds = fetch_fb_functions.getFeed(accessToken)
+---
+>     my_feeds = fetch_fb_functions1.getFeed(accessToken)
+155c161
+<     my_family = fetch_fb_functions.getFamily(accessToken)
+---
+>     my_family = fetch_fb_functions1.getFamily(accessToken)
+161c167
+<     my_status = fetch_fb_functions.get_status(accessToken, uid)
+---
+>     my_status = fetch_fb_functions1.get_status(accessToken, uid)
+169,170c175,176
+<     
+<     my_links = fetch_fb_functions.getLinks(accessToken)
+---
+> 
+>     my_links = fetch_fb_functions1.getLinks(accessToken)
+179,182c185,190
+<     my_inbox = fetch_fb_functions.getInbox(accessToken, uid)
+<     print 'my_inbox'
+<     print my_inbox
+<     score_calculation.update_scores_inbox(my_inbox, 3)
+---
+>     my_inbox = fetch_fb_functions1.getInbox(accessToken, uid)
+>     if my_inbox != None:
+>        print 'my_inbox'
+>        print my_inbox
+>        score_calculation.update_scores_inbox(my_inbox, 3)
+> 
+183a192
+> 
+185,186c194,199
+<     top_twenty_friends = sorted_score_list[len(sorted_score_list)-20:]
+<     
+---
+>     if len(sorted_score_list) >=20:
+>        top_twenty_friends = sorted_score_list[len(sorted_score_list)-20:]
+>     else:
+>        top_twenty_friends = sorted_score_list
+> 
+>     highest_index = len(top_twenty_friends)-1
+189,190c202,203
+< 
+<     highest = top_twenty_friends[19][1]
+---
+>        
+>     highest = top_twenty_friends[highest_index][1]
+196c209
+<         profile = json.loads(fetch_fb_functions.getProfile(accessToken, list_elem[0]))
+---
+>         profile = json.loads(fetch_fb_functions1.getProfile(accessToken, list_elem[0]))
