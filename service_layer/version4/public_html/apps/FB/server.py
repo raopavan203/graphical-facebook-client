@@ -15,7 +15,7 @@ A simple application that shows how Flask and jQuery get along.
 
 from __future__ import division
 from flask import Flask, jsonify, render_template, request, redirect, url_for, session
-from mongoalchemy.document import Document
+from mongoalchemy.document import Document, Index
 from mongoalchemy.fields import *
 from mongoalchemy.session import Session
 import urllib, json, score_calculation, fetch_fb_functions, datetime
@@ -49,7 +49,7 @@ class Score(Document):
 
 class User(Document):
     uid = StringField()
-    modified_time = ModifiedField()
+    modified_time = DateTimeField()
     set_of_scores = ListField(DocumentField(Score), min_capacity=0, max_capacity=20)
 
 # METHODS
@@ -66,11 +66,15 @@ def store_user_record(my_uid, my_friends_scores, update_flag):
     if update_flag == 1:
         current_user = session.query(User)
         current_user.set(User.set_of_scores, my_friends_scores).execute()
+        current_user.set(User.modified_time, datetime.datetime.now()).execute()
         print '%%%%%%% Update Success'
     else:
-        current_user = User(uid=my_uid, set_of_scores=my_friends_scores)
-        session.insert(current_user)
-        print '$$$$$$$$ Insert Success'
+        current_user = User(uid=my_uid, modified_time = datetime.datetime.now(), set_of_scores=my_friends_scores)
+        try:
+            session.insert(current_user)
+            print '$$$$$$$$ Insert Success'
+        except BadFieldException:
+            print '$$$$$$$$ Already Inserted'
 
 def doWork(uid, url, score):
     while True:
@@ -169,7 +173,7 @@ def getCloseFriends():
           print datetime.datetime.now()
           time_diff = datetime.datetime.now()-cur_user.modified_time
           print 'time diff: ',time_diff.total_seconds()
-          if time_diff.total_seconds() > 2628000:
+          if time_diff.total_seconds() > RECALCULATE_AFTER:
               update_flag = 1
               break    
           else:

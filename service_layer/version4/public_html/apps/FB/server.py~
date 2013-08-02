@@ -15,10 +15,10 @@ A simple application that shows how Flask and jQuery get along.
 
 from __future__ import division
 from flask import Flask, jsonify, render_template, request, redirect, url_for, session
-from mongoalchemy.document import Document
+from mongoalchemy.document import Document, Index
 from mongoalchemy.fields import *
 from mongoalchemy.session import Session
-import urllib, json, score_calculation5, fetch_fb_functions5, datetime
+import urllib, json, score_calculation, fetch_fb_functions, datetime
 from threading import Thread
 from Queue import Queue
 import time
@@ -49,7 +49,7 @@ class Score(Document):
 
 class User(Document):
     uid = StringField()
-    modified_time = ModifiedField()
+    modified_time = DateTimeField()
     set_of_scores = ListField(DocumentField(Score), min_capacity=0, max_capacity=20)
 
 # METHODS
@@ -66,11 +66,15 @@ def store_user_record(my_uid, my_friends_scores, update_flag):
     if update_flag == 1:
         current_user = session.query(User)
         current_user.set(User.set_of_scores, my_friends_scores).execute()
+        current_user.set(User.modified_time, datetime.datetime.now()).execute()
         print '%%%%%%% Update Success'
     else:
-        current_user = User(uid=my_uid, set_of_scores=my_friends_scores)
-        session.insert(current_user)
-        print '$$$$$$$$ Insert Success'
+        current_user = User(uid=my_uid, modified_time = datetime.datetime.now(), set_of_scores=my_friends_scores)
+        try:
+            session.insert(current_user)
+            print '$$$$$$$$ Insert Success'
+        except BadFieldException:
+            print '$$$$$$$$ Already Inserted'
 
 def doWork(uid, url, score):
     while True:
@@ -123,7 +127,7 @@ def getAnyData():
     accessToken = request.args.get('a', '', type=unicode)
     uid = request.args.get('b', '', type=unicode)
     fetch_string = request.args.get('c', '', type=unicode)
-    data = fetch_fb_functions5.getData(accessToken, uid, fetch_string)
+    data = fetch_fb_functions.getData(accessToken, uid, fetch_string)
     return json.dumps(data)
 
 @app.route('/_getProfile') 
@@ -202,7 +206,7 @@ def getCloseFriends():
               return json.dumps(top_twenty)
           
     print '@@@@@@@@@@@@@@@@@    Calculating'
-    my_friends = fetch_fb_functions5.getFriends(accessToken)
+    my_friends = fetch_fb_functions.getFriends(accessToken)
     if 'friends' not in my_friends.keys():
         print 'no friends'
         return json.dumps('')
@@ -220,71 +224,71 @@ def getCloseFriends():
     #print score_list
 
     fetch_string = 'photos, checkins, feed, links, family, inbox.limit(500), statuses' 
-    all_data = fetch_fb_functions5.getData(accessToken, uid, fetch_string)
+    all_data = fetch_fb_functions.getData(accessToken, uid, fetch_string)
 
-    my_photos = fetch_fb_functions5.getPhotos(accessToken, all_data)
+    my_photos = fetch_fb_functions.getPhotos(accessToken, all_data)
     if my_photos != None:
        print 'my_photos'
        #print my_photos
        print my_photos['tagged']
-       score_calculation5.update_scores(my_photos['tagged'], 3, score_list)
+       score_calculation.update_scores(my_photos['tagged'], 3, score_list)
        print my_photos['liked by']
-       score_calculation5.update_scores(my_photos['liked by'], 2, score_list)
+       score_calculation.update_scores(my_photos['liked by'], 2, score_list)
        print my_photos['commented by']
-       score_calculation5.update_scores(my_photos['commented by'], 2, score_list)
+       score_calculation.update_scores(my_photos['commented by'], 2, score_list)
 
-    my_checkins = fetch_fb_functions5.getCheckins(accessToken, uid, all_data) 
+    my_checkins = fetch_fb_functions.getCheckins(accessToken, uid, all_data) 
     print 'my_checkins'
     if my_checkins != None:
        print my_checkins['from']
-       score_calculation5.update_scores(my_checkins['from'], 4, score_list) 
+       score_calculation.update_scores(my_checkins['from'], 4, score_list) 
     
        print my_checkins['tagged']
-       score_calculation5.update_scores(my_checkins['tagged'], 4, score_list) 
+       score_calculation.update_scores(my_checkins['tagged'], 4, score_list) 
     
-    my_feeds = fetch_fb_functions5.getFeed(accessToken, all_data)
+    my_feeds = fetch_fb_functions.getFeed(accessToken, all_data)
     if my_feeds != None:
        print 'my_feeds'
        print my_feeds['tagged']
-       score_calculation5.update_scores(my_feeds['tagged'], 3, score_list)
+       score_calculation.update_scores(my_feeds['tagged'], 3, score_list)
        print my_feeds['liked by']
-       score_calculation5.update_scores(my_feeds['liked by'], 2, score_list)
+       score_calculation.update_scores(my_feeds['liked by'], 2, score_list)
        print my_feeds['commented by']
-       score_calculation5.update_scores(my_feeds['commented by'], 2, score_list)
+       score_calculation.update_scores(my_feeds['commented by'], 2, score_list)
     
-    my_family = fetch_fb_functions5.getFamily(accessToken, all_data)
+    my_family = fetch_fb_functions.getFamily(accessToken, all_data)
     print 'my_family'
     if my_family != None:
        print my_family
-       score_calculation5.update_scores_family(my_family, 3, score_list)
+       score_calculation.update_scores_family(my_family, 3, score_list)
 
-    my_status = fetch_fb_functions5.get_status(accessToken, uid, all_data)
+    my_status = fetch_fb_functions.get_status(accessToken, uid, all_data)
     if my_status != None:
        print 'my_status'
        print my_status['tagged']
-       score_calculation5.update_scores(my_status['tagged'], 3, score_list)
+       score_calculation.update_scores(my_status['tagged'], 3, score_list)
        print my_status['liked by']
-       score_calculation5.update_scores(my_status['liked by'], 2, score_list)
+       score_calculation.update_scores(my_status['liked by'], 2, score_list)
        print my_status['commented by']
-       score_calculation5.update_scores(my_status['commented by'], 2, score_list)
+       score_calculation.update_scores(my_status['commented by'], 2, score_list)
 
-    my_links = fetch_fb_functions5.getLinks(accessToken, all_data)
+    my_links = fetch_fb_functions.getLinks(accessToken, all_data)
     if my_links != None:
        print 'my_links'
        print my_links['tagged']
-       score_calculation5.update_scores(my_links['tagged'], 3, score_list)
+       score_calculation.update_scores(my_links['tagged'], 3, score_list)
        print my_links['liked by']
-       score_calculation5.update_scores(my_links['liked by'], 2, score_list)
+       score_calculation.update_scores(my_links['liked by'], 2, score_list)
        print my_links['commented by']
-       score_calculation5.update_scores(my_links['commented by'], 2, score_list)
+       score_calculation.update_scores(my_links['commented by'], 2, score_list)
 
-    my_inbox = fetch_fb_functions5.getInbox(accessToken, uid, all_data)
+    my_inbox = fetch_fb_functions.getInbox(accessToken, uid, all_data)
     if my_inbox != None:
        print 'my_inbox'
        print my_inbox
-       score_calculation5.update_scores_inbox(my_inbox, 3, score_list)
+       score_calculation.update_scores_inbox(my_inbox, 3, score_list)
 
-    sorted_score_list = score_calculation5.show_scores(score_list)
+    sorted_score_list = score_calculation.show_scores(score_list)
 
     print '++++',sorted_score_list
     if len(sorted_score_list) >=20:
