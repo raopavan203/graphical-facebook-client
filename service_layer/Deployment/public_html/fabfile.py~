@@ -1,0 +1,17 @@
+from fabric.api import env, run, cd
+
+USERNAME = 'root'
+SERVER = 'public_html'
+APP_NAME = 'apps/FB'
+PROJECT_DIR = '.' 
+WSGI_SCRIPT = './wsgi/fb.wsgi' % (SERVER)
+
+env.hosts = ["%s@%s" % (USERNAME, SERVER)]
+
+def deploy():
+    with cd(PROJECT_DIR):
+        run('git pull')
+        run('bin source/activate')
+        run('pip install -r requirements.txt')
+        run('touch %s' % WSGI_SCRIPT)
+        run('cp ')

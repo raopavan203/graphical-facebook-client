@@ -1,0 +1,21 @@
+<VirtualHost *:8081>
+
+        # ---- Configure VirtualHost Defaults ----
+
+    ServerAdmin your-email-address
+
+        DocumentRoot install-path/public_html/apps/FB
+
+        # ---- Configure WSGI Listener(s) ----
+
+        WSGIDaemonProcess fb user=www-data group=www-data processes=3 threads=3 
+        WSGIScriptAlias /fb install-path/public_html/wsgi/fb.wsgi 
+
+        # ---- Configure Logging ----
+
+    ErrorLog install-path/public_html/logs/fb.error.log
+    LogLevel warn
+    CustomLog install-path/public_html/logs/access.log combined
+
+</VirtualHost>
+
