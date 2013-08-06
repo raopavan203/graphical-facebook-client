@@ -3,9 +3,9 @@
 # Script to install graphical-facebook-client server
 #
 REP=${PWD%/*}
-echo $REP
 sed -i -e 's/install-path/'$REP'/g' ./wsgi/fb.wsgi
 sed -i -e 's/install-path/'$REP'/g' ./fb
+sudo apt-get install python-pip
 sudo pip install flask
 sudo apt-get install mongodb
 sudo pip install mongoalchemy
