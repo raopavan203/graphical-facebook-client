@@ -1,0 +1,21 @@
+<VirtualHost *:8081>
+
+        # ---- Configure VirtualHost Defaults ----
+
+    ServerAdmin your-email-address
+
+        DocumentRoot /home/pavan/fb/graphical-facebook-client/service_layer/Deployment/public_html/apps/FB
+
+        # ---- Configure WSGI Listener(s) ----
+
+        WSGIDaemonProcess fb user=www-data group=www-data processes=3 threads=3 
+        WSGIScriptAlias /fb /home/pavan/fb/graphical-facebook-client/service_layer/Deployment/public_html/wsgi/fb.wsgi 
+
+        # ---- Configure Logging ----
+
+    ErrorLog /home/pavan/fb/graphical-facebook-client/service_layer/Deployment/public_html/logs/fb.error.log
+    LogLevel warn
+    CustomLog /home/pavan/fb/graphical-facebook-client/service_layer/Deployment/public_html/logs/access.log combined
+
+</VirtualHost>
+
