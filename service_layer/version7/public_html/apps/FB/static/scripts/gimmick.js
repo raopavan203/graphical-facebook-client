@@ -1,11 +1,11 @@
 var ENV,layoutContainer,mainLayout;
-var loadingAboutMe=true, loadingNewsFeed=true;
+var loadingAboutMe=true, loadingNewsFeed=true,loading=false;
 var w = window.innerWidth,
     h = window.innerHeight;
 var link,node,minLinkDistance=0,scale=1;
 var margins = 10,padding = 20;
 var ticker,counter,showingProfile = false;
-var friends,me,nodes;
+var me,nodes,friends = new Array();
 var strings = ["We Are Working.","Please wait while we fetch your closest friends","Working","Working.","Working..","Working...","Still Working",
                "We are really sorry!!","We will be faster next time","Almost done","really almost done","just a few more moments",
     	       "We will make sure, you don't regret the wait","Yep! It's that good","About to be done","Do let us know, how it is",
@@ -56,22 +56,36 @@ function initializeData(uid,accessToken,callback){
     console.log("Data fetching initialized");
     weAreWorkingAnimation();
     $.getJSON($SCRIPT_ROOT + '/_getProfile', { a: accessToken }, function(data) {
-
+        d3.select("#logout")
+            .on("click",function(){ FB.logout(); alert("logged out");})
+            .html("logout");
+            
         console.log("User Id : " + data.id);
         me = data;
-	me.userStatus = me.status || {"message" : " :( <p> FACEGRAPH : 404 <p> Something is terribly wrong. We Are Working on it. <p>Sorry!!  " , "updated_time" : ""};
+        if(typeof me.status !== 'undefined' && typeof me.status.message !== 'undefined' && me.status.message && me.status.message !== "")
+            me.userStatus = me.status;
+        else
+    	    me.userStatus = {"message" : " :( \n FACEGRAPH : 404 \n Something is terribly wrong. We Are Working on it. \nSorry!!  " , "updated_time" : "--"};
+	    
+	    
         $.getJSON($SCRIPT_ROOT + '/_getCloseFriends', { a: accessToken, b: me.id }, function(response) {
 
 	        console.log("data fetched");
 
-		ticker = window.clearInterval(ticker);
-		d3.selectAll("#overlay").remove();
-		console.log("tickers terminated");
-                friends = response;
+    		ticker = window.clearInterval(ticker);
+	    	d3.selectAll("#overlay").remove();
+	    	console.log("tickers terminated");
 
-	        for(var i=0; i <friends.length ; i++)
-		      friends[i].userStatus = friends[i].status || {"message" : " :( <p> Something is terribly wrong. We Are Working on it. Sorry!!  " , "updated_time" : ""};
-
+            for(var i=0; i <response.length ; i++){
+                if(response[i])
+                    friends.push(response[i]);            
+            }
+	        for(var i=0; i <friends.length ; i++){
+                if(typeof friends[i].status !== 'undefined' && typeof friends[i].status.message !== 'undefined' && friends[i].status.message && friends[i].status.message !== "")
+                    friends[i].userStatus = friends[i].status;
+                else
+    	            friends[i].userStatus = {"message" : " :( \n FACEGRAPH : 404 \n Something is terribly wrong. We Are Working on it. \nSorry!!  " , "updated_time" : "--"};            
+    	    }
                 init();
         });
     });
@@ -82,11 +96,9 @@ function toggleComments(){
                       $("#feedContainer .newsFeedTime").height() + $("#feedContainer .newsFeedActionBar").height();
                     
     if(d3.select("#feedContainer .newsContentComments").style("display") === 'none'){    
-        if(350 - totalHeight >= 100){
-            d3.select("#feedContainer .newsContentComments").style("height",(250 - totalHeight) + "px").style("display","block");
-        } 
+        d3.select("#feedContainer .newsContentComments").style("display","block");
     } else{
-        d3.select("#feedContainer .newsContentComments").style("height","0px").style("display","none");
+        d3.select("#feedContainer .newsContentComments").style("display","none");
     }
 }
 
@@ -96,6 +108,16 @@ function NewsFeeds(person){                                             //News f
     this.newsFeed = {'data' : new Array()};
     this.infoAvailable = false;
     this.currentMiniPost=0;
+    
+    this.plainText = function(msg){
+         msg = msg.toString();
+         msg = msg.replace(/&/g,'&amp;');
+         msg = msg.replace(/</g,'&lt;');
+         msg = msg.replace(/>/g,'&gt;');
+         msg = msg.replace(/\n/g,'<br />\n');
+         msg = msg.replace(/\r/g,'');
+         return msg;
+    }
     
     this.initiate = function(container){                                //Initiate news feeds
             loadingNewsFeed = true;
@@ -187,30 +209,24 @@ function NewsFeeds(person){                                             //News f
                         .style("font-size","60")
                         .text(">");
                         
-            
-                that.container.append("text")
-                        .attr("x",w/2+332)
-                        .attr("y",h-150)
-                        .attr("text-anchor","middle")
-                        .style("fill","#373737")
-                        .text("<<    Expand    >>");       
-                                        
             that.miniView(0);    
     }
     
     this.miniView = function(postNumber,forward){
-        if(!that.infoAvailable || (typeof postNumber !== 'undefined' && postNumber > that.newsFeed.data.length) || 
+        if(!that.infoAvailable || (typeof postNumber !== 'undefined' && postNumber >= that.newsFeed.data.length) || 
                         (typeof postNumber === 'undefined' && typeof that.currentMiniPost !== 'undefined' && that.currentMiniPost > that.newsFeed.data.length)){
             console.log("News Feed : Info not available. Fetching Now.");
             that.fetchNewsFeed(that.miniView);
         } else{
             loadingNewsFeed = false;
             if(loadingAboutMe == false){
+                loading = false;
                 d3.select("#newsFeed").transition().duration(1000).style("display","block").style("opacity",1);
                 d3.select("#aboutMe").transition().duration(1000).style("display","block").style("opacity",1);
             }
-            
-            postNumber = postNumber || that.currentMiniPost;
+            if(typeof postNumber === 'undefined')
+                postNumber = 0;
+
             if(postNumber < 0)
                 postNumber = that.currentMiniPost;
             that.currentMiniPost = postNumber;
@@ -220,15 +236,15 @@ function NewsFeeds(person){                                             //News f
                 var content = "<div class='newsFeedHeader'><div class='newsFeedHeaderFocus'><a href='https://www.facebook.com/" + feed.from.id + "'><b>" + 
                                         (typeof feed.story !== 'undefined' ? feed.story : feed.from.name) + "</b></a></div>";
                 content += "<div class='newsFeedHeaderNonFocus'>";
-                if(typeof feed.place !== 'undefined'){
+                if(typeof feed.place !== 'undefined' && typeof feed.place.location !== 'undefined'){
                     content += "was at " + feed.place.name + " ";
-                    if(feed.place.location.street !== "")
+                    if(typeof feed.place.location.street !== 'undefined' && feed.place.location.street !== "")
                         content += feed.place.location.street + " ";
-                    if(feed.place.location.city !== "")
+                    if(typeof feed.place.location.city !== 'undefined' && feed.place.location.city !== "")
                         content += feed.place.location.city + " ";
-                    if(feed.place.location.state !== "")
+                    if(typeof feed.place.location.state !== 'undefined' && feed.place.location.state !== "")
                         content += feed.place.location.state + " ";
-                    if(feed.place.location.country !== "")
+                    if(typeof feed.place.location.country !== 'undefined' && feed.place.location.country !== "")
                         content += feed.place.location.country + " ";
                     content += " ";
                 }
@@ -387,7 +403,11 @@ function NewsFeeds(person){                                             //News f
                 content += "</div>";
                 
                 that.container.select("#newsFeedDiv").html(content);
-                
+                $("#newsFeedDiv").mCustomScrollbar({
+                    advanced:{
+                        updateOnContentResize: true
+                    }
+                });
             } else {
                 if(typeof forward !== 'undefined' && forward == false){
                     if(postNumber > 0)
@@ -421,7 +441,7 @@ function NewsFeeds(person){                                             //News f
                 }
 
                 if(typeof d.message !== 'undefined' && d.message){
-                    feed.message = d.message;
+                    feed.message = that.plainText(d.message);
                 }                
                 
                 if(typeof d.picture !== 'undefined' && d.picture ){
@@ -445,15 +465,15 @@ function NewsFeeds(person){                                             //News f
                 }
                 
                 if(typeof d.name !== 'undefined' && d.name ){
-                    feed.contentName = d.name;
+                    feed.contentName = that.plainText(d.name);
                 }                             
                 
                 if(typeof d.description !== 'undefined' && d.description ){
-                    feed.description = d.description;
+                    feed.description = that.plainText(d.description);
                 }                   
                 
                 if(typeof d.caption !== 'undefined' && d.caption){
-                    feed.caption = d.caption;
+                    feed.caption = that.plainText(d.caption);
                 }                
                 
                 if(d.status_type === "app_created_story"){
@@ -465,7 +485,7 @@ function NewsFeeds(person){                                             //News f
                 }
                 
                 if(typeof d.place !== 'undefined' && d.place){
-                    feed.place = d.place;
+                    feed.place = that.plainText(d.place);
                 }
                 
                 if(typeof d.with_tags !== 'undefined' && d.with_tags){
@@ -473,13 +493,16 @@ function NewsFeeds(person){                                             //News f
                 }
 
                 if(typeof d.likes !== 'undefined' && d.likes){
-                    feed.likes = d.likes.count;
+
+                    feed.likes = d.likes.data.length;
+                   
                 }
                 
                 if(typeof d.comments !== 'undefined' && d.comments){
                     feed.comments = new Array();
                     for(var i=0; i < d.comments.data.length ; i++){
-                        feed.comments.push({"from" : d.comments.data[i].from.name , "message" : d.comments.data[i].message, "time" : d.comments.data[i].created_time});
+                        feed.comments.push({"from" : d.comments.data[i].from.name , "message" : that.plainText(d.comments.data[i].message), 
+                                            "time" : d.comments.data[i].created_time});
                     }
                 }
                 
@@ -560,6 +583,7 @@ function AboutMe(person,container){
 
             loadingAboutMe = false;
             if(loadingNewsFeed == false){
+                loading = false;
                 d3.select("#newsFeed").transition().duration(1000).style("display","block").style("opacity",1);
                 d3.select("#aboutMe").transition().duration(1000).style("display","block").style("opacity",1);
             }
@@ -626,12 +650,7 @@ function AboutMe(person,container){
                     .append("xhtml:div")
                         .attr("id","aboutmeCard")
                         .html(content);
-            
-            that.container.append("text")
-                    .attr("x",w/2-380)
-                    .attr("y",h-150)
-                    .style("fill","#373737")
-                    .text("<<    Expand    >>");
+
         }
     }
     
@@ -1036,6 +1055,29 @@ function User(person){
     this.theater = new CameraRoll(this);
     this.newsFeeds = new NewsFeeds(this);
     this.aboutMe = new AboutMe(this);
+
+    
+    this.userLoading = function(){
+    
+        if(loading == true){
+            d3.select(".spriteOuterCircle.sprite" + that.id)
+                .transition()
+                    .duration(1000)
+                    .style("stroke","#FF1818")
+                    .transition()
+                        .delay(1000)
+                        .duration(1000)
+                        .style("stroke","#FFBE34")
+                        .each("end",function(){
+                            that.userLoading();
+                        });
+        } else {
+            d3.select(".spriteOuterCircle.sprite" + that.id)
+                .transition()
+                    .duration(1000)
+                    .style("stroke","#3690ff");
+        }
+    }
     
     this.generateTheater = function(container) {
         that.theater.initiate(container);
@@ -1136,7 +1178,9 @@ function User(person){
             .attr("mask","url(#spriteCardsOverlap)")
             .style("stroke","#00a2ff")
             .style("stroke-width",1);
-
+        
+        loading = true;
+        that.userLoading();
         that.aboutMe.initiate(profileContainer);
         that.newsFeeds.initiate(profileContainer);
         that.generateTheater(profileContainer);
@@ -1210,14 +1254,26 @@ function User(person){
                         })
                     .attr("y",topSpaceAvailable ? -(height + 5) : 35)
                     .attr("width","290")
-		    .attr("height",height - 10);
+		            .attr("height",height - 10)
+	                .append("xhtml:div")
+                        .attr("class","spriteUserStatus")
+                        .attr("id","status" + that.id)
+                        .style("width","290px");
           
-          var msg = that.userStatus.message != undefined ? that.userStatus.message : "NA";
-          var statusTime = that.userStatus.updated_time != undefined ? that.userStatus.updated_time : "NA";
+          var statusTime = that.userStatus.updated_time;
+          var msg = that.userStatus.message.replace(/&/g,'&amp;');
+          msg = msg.replace(/</g,'&lt;');
+          msg = msg.replace(/>/g,'&gt;');
+          msg = msg.replace(/\n/g,'<br />\n');
+          msg = msg.replace(/\r/g,'');
+          
+          
       
-          var time, offset = new Date().getTimezoneOffset();
-          if(statusTime !== "NA"){
-                time = statusTime;
+          
+          if(statusTime !== "--"){
+                var time, offset = new Date().getTimezoneOffset();
+                var amPM;
+                time = that.userStatus.updated_time;
                  
                 time = time.split('T');
                 time[0] = time[0].split('-');       //Date  0 : y , 1 : m , 2 : d
@@ -1234,6 +1290,8 @@ function User(person){
                     time[1][0]++;
                     time[1][1] = time[1][1]%60;
                 }
+                
+
                         
                 time[1][0] = time[1][0] + (offset<0? parseInt(Math.abs(offset/60)) : -parseInt(Math.abs(offset/60)));
                 if(time[1][0] > 23){
@@ -1241,18 +1299,17 @@ function User(person){
                     time[1][0] = time[1][0] % 24;
                 }
                         
-
-    
-            statusTime = time[1][0]/*hh*/ + ":" + time[1][1]/*mm*/ + ", " + time[0][2]/*D*/ + "-" + time[0][1]/*M*/ + "-" + time[0][0]/*Y*/;
+                amPM = (time[1][0] / 12) >= 1 ? 'PM' : 'AM';
+                time[1][0] = time[1][0] % 12;                
+                statusTime = time[1][0]/*hh*/ + ":" + time[1][1]/*mm*/ + amPM + ", " + time[0][2]/*D*/ + "-" + time[0][1]/*M*/ + "-" + time[0][0]/*Y*/;
           }
+          
+          var divContent = "<div id='statusMessage' style='width : 100%'>" + msg + "</div><div id='statusTime'>" + statusTime + "</div>";
+          console.log(that.fullName + " statusContent : " + divContent);
                     
-          statusContainer.append("xhtml:div")
-                    .attr("class","spriteUserStatus")
-                    .attr("id","status" + that.id)
-                    .style("height",height)
-                    .style("width","290px")
-                        .html("<div id='statusMessage'>" + msg + "</div><div id='statusTime'>" + statusTime + "</div>");
-
+          statusContainer.html(divContent);
+                        
+       
 
     }
 
@@ -1263,7 +1320,7 @@ function User(person){
         var picHeight,picWidth,minSize = 112*scale;
         picHeight = minSize;
         picWidth = this.displayPic.width/this.displayPic.height * minSize;
-	picWidth = (picWidth >= minSize) ? picWidth : minSize;
+	    picWidth = (picWidth >= minSize) ? picWidth : minSize;
   
         var thisSprite = container.append("g")
             .attr("id","spriteID" + that.id);	
@@ -1278,7 +1335,12 @@ function User(person){
             .style("stroke","#3690ff")
             .style("stroke-width","10")
             .style("stroke-opacity",1)
-            .style("filter","url(#spriteFilterOuterCircleBlur)");
+            .style("filter","url(#spriteFilterOuterCircleBlur)")
+            .style("opacity",0)
+            .transition()
+                .delay(2500)
+                .duration(1000)
+                .style("opacity",1);            
 
 
         thisSprite.append("circle")
@@ -1288,7 +1350,12 @@ function User(person){
             .attr("r",(that.radius-2) * scale)
             .style("fill","none")
             .style("stroke","#3690ff")
-            .style("stroke-width","5");
+            .style("stroke-width","5")
+            .style("opacity",0)
+            .transition()
+                .delay(2500)
+                .duration(1000)
+                .style("opacity",1);
 
         thisSprite.append("circle")
             .attr("class","spriteBackgroundCircle")
@@ -1297,7 +1364,13 @@ function User(person){
             .attr("r",(that.radius-2) * scale)
             .style("fill","url(#spriteFilterBackgroundGradient)")
             .style("stroke","none")
-            .style("fill-opacity","1");
+            .style("fill-opacity","1")
+            .style("opacity",0)
+            .transition()
+                .delay(2000)
+                .duration(1000)
+                .style("opacity",1);
+       
  
         var infoPath = d3.svg.arc()
             .innerRadius((that.radius-36) * scale)
@@ -1310,10 +1383,15 @@ function User(person){
 	    .style("fill", "brown")
 	    .style("stroke","brown")
 	    .style("stroke-width","2px")
+	    .style("opacity",0)
 	    .attr("d", infoPath)
 	    .on("click",function() {
 		    	that.generateProfileLayout();
-	    	    });
+	    	    })
+	    .transition()
+           .delay(500)
+           .duration(2000)
+           .style("opacity",1);
 			
 
         thisSprite.append("text")
@@ -1330,7 +1408,14 @@ function User(person){
                 .attr("text-anchor","middle")
                 .attr("startOffset","25%")
                 .attr("xlink:href","#spriteInfoCircle" + that.id)
-                .text(function() { return that.fullName.length > 15 ? that.fullName.substring(0,13) + ".." : that.fullName; });
+                .text(function() { return that.fullName.length > 15 ? that.fullName.substring(0,13) + ".." : that.fullName; })
+            .style("opacity",0)
+            .transition()
+                .delay(3000)
+                .duration(1000)
+                .style("opacity",1);
+                
+             
  
         thisSprite.append("circle")
             .attr("class","spritePhotoBackgroundCircle")
@@ -1338,9 +1423,12 @@ function User(person){
             .attr("cy",0)
             .attr("r",(that.radius - 38) * scale)
             .style("fill","white")
-            .on("click",function() {
-		    	that.generateProfileLayout();
-	    	    });
+            .style("opacity",0)
+            .on("click",function() { that.generateProfileLayout(); })
+            .transition()
+                .duration(2000)
+                .style("opacity",1);
+            
 
         thisSprite.append("clipPath")
             .attr("class","spriteUserPhotoClipper sprite" + that.id)
@@ -1365,18 +1453,22 @@ function User(person){
 		    	that.generateProfileLayout();
 	    	    })
 	        .on("mouseover",function(){
-                    d3.selectAll(".sprite" + that.id).transition().attr("opacity",1); 
+                    d3.selectAll(".sprite" + that.id).transition().style("opacity",1); 
                     d3.selectAll(".link.user" + that.id).transition().duration(1000).style("stroke","#47a1ff").style("stroke-width","5px");
  		            that.showStatus();
                 })
             .on("mouseout",function(){
                     if(!showingProfile)
-			            d3.selectAll(".sprite" + that.id).transition().attr("opacity",0);
+			            d3.selectAll(".sprite" + that.id).transition().style("opacity",0);
                     d3.selectAll(".link.user" + that.id).transition().duration(1000).style("stroke","#9ecae1").style("stroke-width","1.5px");
                     that.removeStatus();
                 });
         
-        d3.selectAll(".sprite" + that.id).attr("opacity",0);
+        d3.selectAll(".sprite" + that.id)
+            .transition()
+                .delay(4000)
+                .duration(1000)
+                .style("opacity",0);
     };
 }
 
@@ -1678,3 +1770,122 @@ $(window).resize(function() {
   if(!showingProfile)
       mainLayout.resume(); 
 });*/
+
+var loginLand = function(){
+        var container = d3.select("body")
+                		.append("div")
+                			.attr("id","svgContainer")
+                			.append("svg")
+				            .attr("height","100%")
+            				.attr("width","100%")
+            				.append("g")
+            				    .attr("transform","translate(" + w/2 + "," + h/2 + ")");
+            				    
+        d3.select("body")
+            .style("background-color","#fff");    				    
+                        
+        var scale = 0.8,radius = 100,id="_login";
+        var picMinAttr = 125 <= 200 ? "height" : "width";
+        var picHeight,picWidth,minSize = 112*scale;
+        picHeight = minSize;
+        picWidth = 200/125 * minSize;
+	    picWidth = (picWidth >= minSize) ? picWidth : minSize;
+  
+        var thisSprite = container.append("g")
+            .attr("id","spriteID" + id);	
+			
+        
+        thisSprite.append("circle")
+            .attr("class","spriteOuterCircle sprite" + id)
+            .attr("cx",0)
+            .attr("cy",0)
+            .attr("r",(radius-2) * scale)
+            .style("fill","none")
+            .style("stroke","#3690ff")
+            .style("stroke-width","5")
+            .style("opacity",0)
+            .on("click",function(){ fblogin();  })
+            .transition()
+                .delay(2500)
+                .duration(1000)
+                .style("opacity",1);
+
+        thisSprite.append("circle")
+            .attr("class","spriteBackgroundCircle")
+            .attr("cx",0)
+            .attr("cy",0)
+            .attr("r",(radius-2) * scale)
+            .style("fill","url(#spriteFilterBackgroundGradient)")
+            .style("stroke","none")
+            .style("fill-opacity","1")
+            .style("opacity",0)
+            .on("click",function(){ fblogin();  })            
+            .transition()
+                .delay(2000)
+                .duration(1000)
+                .style("opacity",1);
+       
+ 
+        var infoPath = d3.svg.arc()
+            .innerRadius((radius-36) * scale)
+			.outerRadius((radius - 36) * scale)
+		    .startAngle(-1.5)
+		    .endAngle(1.5);
+     
+        thisSprite.append("path")
+	    .attr("id","spriteInfoCircle" + id)
+	    .style("fill", "brown")
+	    .style("stroke","brown")
+	    .style("stroke-width","2px")
+	    .style("opacity",0)
+	    .attr("d", infoPath)
+	    .on("click",function(){ fblogin();  })
+	    .transition()
+           .delay(500)
+           .duration(2000)
+           .style("opacity",1);
+			
+        thisSprite.append("circle")
+            .attr("class","spritePhotoBackgroundCircle")
+            .attr("cx",0)
+            .attr("cy",0)
+            .attr("r",(radius - 38) * scale)
+            .style("fill","white")
+            .style("opacity",0)
+            .on("click",function(){ fblogin();  })
+            .transition()
+                .duration(2000)
+                .style("opacity",1);
+            
+
+        thisSprite.append("clipPath")
+            .attr("class","spriteUserPhotoClipper sprite" + id)
+            .attr("id","clipCircle" + id)
+            .append("circle")
+                .attr("cx",0)
+                .attr("cy",0)
+                .attr("r",minSize/2)
+                .attr("transform","translate(" + minSize/2 + "," + picHeight/2 + ")");
+
+        thisSprite.append("image")
+            .attr("class","spriteUserPhoto")
+            .attr("x",0)
+            .attr("y",0)
+            .attr("xlink:href","facebook-default.jpg")
+            .attr("width",picWidth)
+            .attr("height",picHeight)
+	        .attr("preserveAspectRatio","none")	
+            .attr("clip-path","url(#clipCircle" + id + ")")
+            .attr("transform","translate(-" + minSize/2 + ",-" + picHeight/2 + ")")
+            .on("click",function(){ fblogin();  });
+            
+        
+        thisSprite.append("text")
+            .attr("x",0)
+            .attr("y", radius * scale + 50)
+            .attr("text-anchor","middle")
+            .style("font-size","2em")
+            .style("fill","#777")
+            .text("Login")
+            .on("click",function(){ fblogin(); });  
+}
