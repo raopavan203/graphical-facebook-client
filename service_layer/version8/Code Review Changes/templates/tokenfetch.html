@@ -1,0 +1,187 @@
+{% extends "layout.html" %}
+{% block body %}
+
+<div id="fb-root"></div>
+<script>
+
+var uid,accessToken;
+
+    window.fbAsyncInit = function() {
+    FB.init({
+      //appId      : '574879339216823', // App ID
+      appId      : '478027312287777', // App ID
+      status     : true, // check login status
+      cookie     : true, // enable cookies to allow the server to access the session
+      xfbml      : false  // parse XFBML
+    });
+
+    // Additional init code here
+	FB.getLoginStatus(function(response) {
+                if (response.status === 'connected') {
+                        // the user is logged in and has authenticated your
+                        // app, and response.authResponse supplies
+                        // the user's ID, a valid access token, a signed
+                        // request, and the time the access token 
+                        // and signed request each expire
+                        uid = response.authResponse.userID;
+                        accessToken = response.authResponse.accessToken;
+                        initializeData(response.authResponse.userID,response.authResponse.accessToken,init);
+                        console.log("app connected, No Oauth handshake required!!");
+                } 
+                else {
+                        // the user is logged in to Facebook, 
+                        // but has not authenticated your app
+                        FB.login(function(response) {
+                        	if (response.authResponse) {
+                            	uid = response.authResponse.userID;
+    	                        accessToken = response.authResponse.accessToken;
+
+                            	console.log('Welcome!  Fetching your information.... ');
+    	                        FB.api('/me', function(response) {
+                                   	console.log('Good to see you, ' + response.name + '.');
+                            	});
+
+                                initializeData(response.authResponse.userID,response.authResponse.accessToken,init);
+                				console.log("app connected, Oauth handshake completed!!");
+	                        }	 
+        	                else {
+            	                console.log('User cancelled login or did not fully authorize.');
+                    		}
+                    	},{ scope:'email,user_likes,read_friendlists,read_insights,read_mailbox,read_requests,read_stream,manage_notifications,'+
+                				'user_about_me,user_activities,user_birthday,user_checkins,user_education_history,user_hometown,user_groups,user_interests,user_likes,'+
+				                'user_photos,user_relationships,user_religion_politics,user_status,user_website,user_work_history,friends_about_me,friends_activities,'+
+                				'friends_birthday,friends_checkins,friends_education_history,friends_hometown,friends_groups,friends_interests,friends_likes,'+
+				                'friends_photos,friends_relationships,friends_religion_politics,friends_status,friends_website,friends_work_history' 
+            			});
+                }
+       });
+};
+
+  // Load the SDK asynchronously
+function fblogin(){
+
+     (function(d){
+     var js, id = 'facebook-jssdk', ref = d.getElementsByTagName('script')[0];
+     if (d.getElementById(id)) {return;}
+     js = d.createElement('script'); js.id = id; js.async = true;
+     js.src = "//connect.facebook.net/en_US/all.js";
+     ref.parentNode.insertBefore(js, ref);
+   }(document));
+}
+
+function goFullScreen(){
+    var element = document.body; 
+   // Mozilla's proposed API: in practice, you'll need vendor prefixes (see examples below)
+    if (typeof document.cancelFullScreen != 'undefined' && document.fullScreenEnabled === true) {
+    /* do fullscreen stuff */
+        // mozilla proposal
+        element.requestFullScreen();
+ 
+        // Webkit (works in Safari and Chrome Canary)
+        element.webkitRequestFullScreen(); 
+
+        // Firefox (works in nightly)
+        element.mozRequestFullScreen();
+
+        // W3C Proposal
+        element.requestFullscreen();
+    }
+}
+
+/*
+function land(){
+	var lander = d3.select("body")
+			.append("svg")
+				.attr("width","100%")
+				.attr("height","100%")
+				.append("g");
+	
+	function login(){
+		d3.select("svg").append("path")
+			.attr("d","M " + (window.innerWidth/2 - 40) + " " + ((window.innerHeight/2)-50) +
+				" l 100 0 q 5 0 5 5 l 0 40 q 0 5 -5 5 l -200 0 q -5 0 -5 -5 l 0 -40 q 0 -5 5 -5 Z")
+			.style("fill","rgb(47,205,255)")
+			.attr("stroke","rgba(0,0,0,0.4)")
+			.attr("stroke-width",5)
+			.on("click",function() { 
+				d3.select("svg").remove();
+				goFullScreen();
+				fblogin();
+			});
+		d3.select("svg").append("text")
+			.attr("x",window.innerWidth/2 - 90)
+			.attr("y",window.innerHeight/2)
+			.attr("dy", -16)
+			.text("BIG BLUE")
+			.style("font-size","x-large")
+			.style("fill","rgba(0,0,0,0.6)")
+			.on("click",function(){
+				d3.select("svg").remove();
+				goFullScreen();
+				fblogin();
+			});
+	}
+
+	var landText = lander.append("text")
+		.attr("x",480)
+		.attr("y","50%")
+		.attr("dy",0)
+		.style("opacity",0)
+		.style("font-size","xx-large")
+		.style("fill","#cccccc")
+		.text("So we see, You want to see some new Tricks")
+			.transition()
+			.duration(2000)
+				.style("opacity",1);
+
+	landText.transition()
+		.duration(1000)
+		.delay(2000)
+		.style("opacity",0)
+		.each("end", function() {
+
+		 lander.select("text")
+			.attr("x",350)
+	                .text("No Problem. Just Hit the BIG BLUE button, log in and Enjoy")
+        	        .transition()
+                	.duration(2000)
+                        .style("opacity",1)
+			.each("end",function(){
+				lander.select("text")
+					.transition()
+					.duration(2000)
+					.attr("dy",-200)
+					.each("end", function() { login();});
+			});    
+		});
+		
+	d3.select("svg").on("click",function() { 
+		lander.selectAll("text").remove();
+		d3.select("svg")
+		      .append("text")
+		      .attr("x",450)
+                      .attr("dy",-200)
+		      .attr("y","50%")
+		      .text("Hit the BIG BLUE button, log in and Enjoy")
+		      .style("font-size","xx-large")
+	              .style("fill","#cccccc");
+
+ 		login();
+	});
+
+}
+	
+land();
+*/
+
+
+
+fblogin();
+</script>
+
+
+<div id="backDiv">
+facegraph
+</div>
+
+{% endblock %} 
