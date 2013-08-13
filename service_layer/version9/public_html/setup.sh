@@ -2,23 +2,23 @@
 #
 # Script to install graphical-facebook-client server
 #
-
 curr_dir=`pwd`
 dir=`dirname $0`
 FILE_PATH=`cd  $dir;pwd`
 echo "Path to this file : $FILE_PATH"
 sed -i -e 's@install-path@'$FILE_PATH'@g' ${FILE_PATH}/wsgi/fb.wsgi
 sed -i -e 's@install-path@'$FILE_PATH'@g' ${FILE_PATH}/fb
+sudo apt-get -y update
 echo 'INSTALL PIP'
-sudo apt-get install python-pip
+sudo apt-get -y install python-pip
 echo 'INSTALL FLASK'
 sudo pip install flask
 echo 'INSTALL APACHE2'
-sudo apt-get install apache2
+sudo apt-get -y install apache2
 echo 'INSTALL MOD-WSGI'
-sudo apt-get install libapache2-mod-wsgi
+sudo apt-get -y install libapache2-mod-wsgi
 echo 'INSTALL MONGODB'
-sudo apt-get install mongodb
+sudo apt-get -y install mongodb
 echo 'INSTALL MONGOALCHEMY'
 sudo pip install mongoalchemy
 echo 'INSTALL FLASK-MONGOALCHEMY'
